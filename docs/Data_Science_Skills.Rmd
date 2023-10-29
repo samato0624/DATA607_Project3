@@ -33,7 +33,7 @@ skill_count <- skills %>%
   mutate(About.the.job = str_remove_all(About.the.job, "[0-9]")) %>%
   filter(!str_detect(`About.the.job`, paste(the_great_filter, collapse = "|"))) %>%
   arrange(desc(n)) %>%
-  top_n(20)
+ 
 
 print(skills)
 print(skill_count)
