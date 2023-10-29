@@ -18,11 +18,29 @@ raw_data <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Proje
 This is an R Markdown document for the Tidyr Titans Project 3, "Most Valuable Data Science Skills".
 
 ```{r}
+the_great_filter <- c("color", "national origin", "religion", "sexual orientation", "age", "disability", "gender", "sex", "marital status", "veteran status", "dental", "ethnicity", "race", "genetic information")
+
 skills <- raw_data %>%
-  mutate(Pay.Range = (str_remove_all(Pay.Range, "[$yr////, ]")))%>%
-  mutate(Pay_Min = as.numeric(str_extract(Pay.Range, "\\d+(?=-)")))%>%
-  mutate(Pay_Max = as.numeric(str_extract(Pay.Range, "(?<=-)[0-9]+")))
+  mutate(Pay.Range = (str_remove_all(Pay.Range, "[$yr////, ]"))) %>%
+  mutate(Pay_Min = as.numeric(str_extract(Pay.Range, "\\d+(?=-)"))) %>%
+  mutate(Pay_Max = as.numeric(str_extract(Pay.Range, "(?<=-)[0-9]+"))) %>%
+  select(c(2, 3, 5, 6, 7, 8)) %>%
+  separate_longer_delim(About.the.job, ",")
+
+
+skill_count <- skills %>%
+  count(About.the.job) %>%
+  mutate(About.the.job = str_remove_all(About.the.job, "[0-9]")) %>%
+  filter(!str_detect(`About.the.job`, paste(the_great_filter, collapse = "|"))) %>%
+  arrange(desc(n))
 
 print(skills)
+print(skill_count)
+```
+
+```{r}
+ggplot(skills, aes(x = About.the.job)) + geom_bar(stat = "count", fill = "steelblue") + 
+  theme_classic() +
+  coord_flip()
 ```
 
