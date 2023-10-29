@@ -32,15 +32,17 @@ skill_count <- skills %>%
   count(About.the.job) %>%
   mutate(About.the.job = str_remove_all(About.the.job, "[0-9]")) %>%
   filter(!str_detect(`About.the.job`, paste(the_great_filter, collapse = "|"))) %>%
-  arrange(desc(n))
+  arrange(desc(n)) %>%
+  top_n(20)
 
 print(skills)
 print(skill_count)
 ```
 
 ```{r}
-ggplot(skills, aes(x = About.the.job)) + geom_bar(stat = "count", fill = "steelblue") + 
+ggplot(skill_count, aes(x = reorder(About.the.job, n), y = n)) + geom_bar(stat = "identity", fill = "steelblue") + 
   theme_classic() +
-  coord_flip()
+  coord_flip() +
+  labs(x = "Skills", y = "Count")
 ```
 
