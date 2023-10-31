@@ -1,0 +1,120 @@
+---
+title: "Data Scientist Skills"
+author: "Marley Myrianthopoulos, Sean Amato, and Molly Siebecker"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Gathering and Tidying Data
+
+```{r}
+
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(scales)
+
+data_scientist_skills_list <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Project3/main/docs/data_scientist_skills.csv")
+
+data_scientist_skills_list <- data_scientist_skills_list[-1,]
+
+unique_skills_list <- data.frame(skills_list = unlist(data_scientist_skills_list))
+
+unique_skills_list <- unique_skills_list %>%
+  filter(skills_list != "") %>%
+  group_by(skills_list) %>%
+  mutate(count = length(skills_list)) %>%
+  distinct(skills_list,count) %>%
+  arrange(desc(count), skills_list)
+  
+rownames(unique_skills_list) <- NULL
+
+final_skills_list <- unique_skills_list[c(1:9,12,13,17,19,22,24,27:29,32,34,36:37,39,40,43,45,47:50,52,53,58,59,61,62,64,66,71,72,76,77,79:81,83:87),1]
+
+final_skills_list <- final_skills_list %>% arrange(skills_list)
+
+final_skills_list$skills_list <- tolower(final_skills_list$skills_list)
+
+final_skills_list$skills_list[38] <- " r "
+
+kable(final_skills_list, format = "pipe", col.names = c(""), caption = "Skills for Data Scientists", align = "c")
+
+```
+
+```{r}
+
+raw_data <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Project3/main/Raw_Data.csv")
+
+skills <- raw_data %>%
+  mutate(Pay.Range = (str_remove_all(Pay.Range, "[$yr////, ]"))) %>%
+  mutate(Pay_Min = as.numeric(str_extract(Pay.Range, "\\d+(?=-)"))) %>%
+  mutate(Pay_Max = as.numeric(str_extract(Pay.Range, "(?<=-)[0-9]+"))) %>%
+  select(c(2, 3, 5, 6, 7, 8))
+
+##job_postings_subset <- skills[1:3, ]
+
+##kable(job_postings_subset, format = "pipe", col.names = c("Company", "Title", "Description", "Locale", "Minimum Salary", "Maximum Salary"), caption = "Sample Job Postings", align = "c")
+```
+
+# Analysis
+
+"Most valued skills" can mean either the skills that the most people want, or the skills that people want the most. Therefore, we are going to focus our analysis on two measures: number of postings and salary. 
+
+To analyze which skills are the most valuable by salary, we are going to focus on the minimum of the given salary range for each posting. When a skill is particularly highly valued, the minimum salary in the range would not go below a certain amount. The inverse, however, is not necessarily true. For a skill that is not particularly highly valued, we cannot assume that the maximum salary would not go above a certain amount. Skills that are less highly valued are likely to be considered baseline requirements that would appear in job postings for higher-paying as well as lower-paying jobs, making the maximum salary less meaningful for comparison than the minimum salary. 
+
+```{r}
+
+skills_data <- final_skills_list
+
+
+for(i in 1:nrow(skills_data)) {
+  skills_data$postings[i] <- as.numeric(skills %>% filter(str_detect(tolower(About.the.job),skills_data$skills_list[i])) %>% summarise(n = n()))
+}
+
+skills_data <- skills_data %>% filter(postings != 0)
+
+for(i in 1:nrow(skills_data)) {
+  skills_data$avg_min_sal[i] <- as.numeric(skills %>% drop_na(Pay_Min) %>% filter(str_detect(tolower(About.the.job),skills_data$skills_list[i])) %>% summarise(avg = mean(Pay_Min)))
+}
+
+skills_data$avg_min_sal <- dollar(skills_data$avg_min_sal)
+kable(skills_data, format = "pipe", col.names = c("Skill", "Number of Postings", "Average Minimum Salary"), caption = "Skills for Data Scientists", align = "c", digits = 0)
+```
+
+Below, we filter the list of skills to include only those with at least 5 postings, arrange in descending order by number of postings, and display the frequency of each skill in a bar graph.
+
+```{r}
+skills_data_filtered <- skills_data %>% filter(postings >= 5)
+
+skills_data_filtered$skills_list <- factor(skills_data_filtered$skills_list, levels = skills_data_filtered$skills_list[order(skills_data_filtered$postings, decreasing = FALSE)])
+
+ggplot(skills_data_filtered, aes(x = skills_list, y = postings, fill = skills_list)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  labs(title = "Number of Postings by Skill", x = "Skill", y = "Frequency") +
+  coord_flip() 
+```
+
+Below, we order the skills list in descending order by average minimum salary, reformat the average minimum salary as a number, and display the averge minimum salary of each skill in a bar graph.
+
+```{r}
+skills_data_filtered$skills_list <- factor(skills_data_filtered$skills_list, levels = skills_data_filtered$skills_list[order(skills_data_filtered$avg_min_sal, decreasing = FALSE)])
+skills_data_filtered$avg_min_sal <- parse_number(skills_data_filtered$avg_min_sal)
+
+ggplot(skills_data_filtered, aes(x = skills_list, y = avg_min_sal, fill = skills_list)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  labs(title = "Average Minimum Salary by Skill", x = "Skill", y = "Average Minimum Salary (dollars per year)") +
+  coord_flip()
+```
+
+# Findings and Recommendations
+
+There are only two skills that appear in the top five skills when measured both by frequency and by average minimum salary: communication and leadership; both are "soft skills."
+
+
+
