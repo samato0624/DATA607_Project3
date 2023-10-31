@@ -52,9 +52,16 @@ kable(final_skills_list, format = "pipe", col.names = c(""), caption = "Skills f
 raw_data <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Project3/main/Raw_Data.csv")
 
 skills <- raw_data %>%
+  
+  # removed unnecessary characters
   mutate(Pay.Range = (str_remove_all(Pay.Range, "[$yr////, ]"))) %>%
+  
+  # extracted the low end of the pay range
   mutate(Pay_Min = as.numeric(str_extract(Pay.Range, "\\d+(?=-)"))) %>%
+  # extracted the high end of the pay range
   mutate(Pay_Max = as.numeric(str_extract(Pay.Range, "(?<=-)[0-9]+"))) %>%
+  
+  # selected important columns
   select(c(2, 3, 5, 6, 7, 8))
 
 ##job_postings_subset <- skills[1:3, ]
