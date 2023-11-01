@@ -1,0 +1,147 @@
+---
+title: "Data Scientist Skills"
+author: "Marley Myrianthopoulos, Sean Amato, and Molly Siebecker"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Gathering and Tidying Data
+
+Using Google search, we gathered information on the most important skills for data scientists from 6 sources: The Bureau of Labor Statistics, Indeed, Coursera, Rice University, Santa Clara University, and Berkeley Extension. We felt that any skill not represented on any of these lists was unlikely to qualify as one of the "most valued" skills for data scientists. We then set about cleaning this list, removing overlap, duplicates and empty rows, and produced a final list of candidates for the most valued skills for data scientists that we can compare against job postings.
+
+```{r}
+## load libraries
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(scales)
+
+data_scientist_skills_list <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Project3/main/docs/data_scientist_skills.csv")
+
+data_scientist_skills_list <- data_scientist_skills_list[-1,]
+
+unique_skills_list <- data.frame(skills_list = unlist(data_scientist_skills_list))
+
+#This sequence of transformations removes empty rows, identifies skills that appear multiple times, and removes duplicates.
+unique_skills_list <- unique_skills_list %>%
+  filter(skills_list != "") %>%
+  group_by(skills_list) %>%
+  mutate(count = length(skills_list)) %>%
+  distinct(skills_list,count) %>%
+  arrange(desc(count), skills_list)
+  
+rownames(unique_skills_list) <- NULL
+
+#This final skills list selects the skills that we felt do not overlap from our initial list.
+final_skills_list <- unique_skills_list[c(1:9,12,13,17,19,22,24,27:29,32,34,36:37,39,40,43,45,47:50,52,53,58,59,61,62,64,66,71,72,76,77,79:81,83:87),1]
+
+final_skills_list <- final_skills_list %>% arrange(skills_list)
+
+#Converts each skill to lower case to avoid problems resulting from case-sensitivity when searching job postings.
+final_skills_list$skills_list <- tolower(final_skills_list$skills_list)
+
+#Replaces the single letter "r" in the skills list, which would have flagged any posting containing a letter r anywhere in it.
+final_skills_list$skills_list[38] <- " r "
+
+kable(final_skills_list, format = "pipe", col.names = c(""), caption = "Skills for Data Scientists", align = "c")
+
+```
+
+We collected 31 job postings from LinkedIn and extracted the minimum and maximum pay range as well as a description of the job requirements here.
+
+```{r}
+
+raw_data <- read.csv("https://raw.githubusercontent.com/samato0624/DATA607_Project3/main/Raw_Data.csv")
+
+skills <- raw_data %>%
+  
+  # removed unnecessary characters
+  mutate(Pay.Range = (str_remove_all(Pay.Range, "[$yr////, ]"))) %>%
+  
+  # extracted the low end of the pay range
+  mutate(Pay_Min = as.numeric(str_extract(Pay.Range, "\\d+(?=-)"))) %>%
+  # extracted the high end of the pay range
+  mutate(Pay_Max = as.numeric(str_extract(Pay.Range, "(?<=-)[0-9]+"))) %>%
+  
+  # selected important columns
+  select(c(2, 3, 5, 6, 7, 8))
+```
+
+# Analysis
+
+"Most valued skills" can mean either the skills that the most people want, or the skills that people want the most. Therefore, we are going to focus our analysis on two measures: number of postings and salary. 
+
+To analyze which skills are the most valuable by salary, we are going to focus on the minimum of the given salary range for each posting. When a skill is particularly highly valued, the minimum salary in the range would not go below a certain amount. The inverse, however, is not necessarily true. For a skill that is not particularly highly valued, we cannot assume that the maximum salary would not go above a certain amount. Skills that are less highly valued are likely to be considered baseline requirements that would appear in job postings for higher-paying as well as lower-paying jobs, making the maximum salary less meaningful for comparison than the minimum salary. 
+
+```{r}
+
+skills_data <- final_skills_list
+
+#This for loop calculates the number of postings that each skill appears in and stores it in a new column.
+for(i in 1:nrow(skills_data)) {
+  skills_data$postings[i] <- as.numeric(skills %>% filter(str_detect(tolower(About.the.job),skills_data$skills_list[i])) %>% summarise(n = n()))
+}
+
+#Remove skills that do not appear in any of the postings.
+skills_data <- skills_data %>% filter(postings != 0)
+
+#This for loop calculates the average minimum salary for job postings that list each skill and stores it in a new column.
+for(i in 1:nrow(skills_data)) {
+  skills_data$avg_min_sal[i] <- as.numeric(skills %>% drop_na(Pay_Min) %>% filter(str_detect(tolower(About.the.job),skills_data$skills_list[i])) %>% summarise(avg = mean(Pay_Min)))
+}
+
+skills_data$avg_min_sal <- dollar(skills_data$avg_min_sal)
+kable(skills_data, format = "pipe", col.names = c("Skill", "Number of Postings", "Average Minimum Salary"), caption = "Skills for Data Scientists", align = "c", digits = 0)
+
+```
+
+Below, we filter the list of skills to include only those with at least 5 postings, arrange in descending order by number of postings, and display the frequency of each skill in a bar graph.
+
+```{r}
+## filter for five or more postings
+skills_data_filtered <- skills_data %>% filter(postings >= 5)
+
+## arrange in descending order by number of postings
+skills_data_filtered$skills_list <- factor(skills_data_filtered$skills_list, levels = skills_data_filtered$skills_list[order(skills_data_filtered$postings, decreasing = FALSE)])
+
+## create bar graph
+ggplot(skills_data_filtered, aes(x = skills_list, y = postings, fill = skills_list)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  labs(title = "Number of Postings by Skill", x = "Skill", y = "Frequency") +
+  coord_flip() 
+```
+
+Below, we order the skills list in descending order by average minimum salary, reformat the average minimum salary as a number, and display the averge minimum salary of each skill in a bar graph.
+
+```{r}
+## arrange in descending order by average minimum salary
+skills_data_filtered$skills_list <- factor(skills_data_filtered$skills_list, levels = skills_data_filtered$skills_list[order(skills_data_filtered$avg_min_sal, decreasing = FALSE)])
+
+## convert average minimum salary to number
+skills_data_filtered$avg_min_sal <- parse_number(skills_data_filtered$avg_min_sal)
+
+## create bar graph
+ggplot(skills_data_filtered, aes(x = skills_list, y = avg_min_sal, fill = skills_list)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  labs(title = "Average Minimum Salary by Skill", x = "Skill", y = "Average Minimum Salary (dollars per year)") +
+  coord_flip()
+```
+
+# Findings and Recommendations
+
+There are only two skills that appear in the top five skills when measured both by frequency and by average minimum salary: communication and leadership; both are "soft skills." This is evidence that soft skills like communication and leadership are highly valued and should not be neglected by aspiring data scientists in favor of hard skills.
+
+The technical skills that appear the most often in postings are Python, Machine Learning, and SQL (these would be the skills that "the most people want"), while the technical skills that have the highest average minimum salary associated with them are data visualization, data analytics, and big data (these would be the skills that "people want the most"). Data visualization, the skill with the highest average minimum salary overall, is an interesting overlap case in that good data visualization is a combination of hard skills (creating the necessary visualizations using software and recognizing which data is most important) and soft skills (understanding how to communicate findings clearly to people who do not necessarily have the same level of technical or mathematical expertise).
+
+In the context of big organizations the observed phenomena makes sense. Data scientists with technical skills and good leadership are unicorns. They drive organizations and develop the talent of aspiring data scientists. The ability to persuade people and communicate findings will determine whether or not people take your advice with regards to strategic decision making, but having the ability to guide other data scientists to do this is what brings value to the business.
+
+We also note that Python and SQL are very frequently mentioned skills, and R ranks 12th both in number of postings and average minimum salary. Python is listed over 5 times as often as R, and corresponds to a more than $15,000 average minimum salary increase. SQL is listed almost 3 times as often as R, and corresponds to almost a $20,000 average minimum salary increase.
+
+
+
