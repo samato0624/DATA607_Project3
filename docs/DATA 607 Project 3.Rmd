@@ -124,7 +124,9 @@ ggplot(skills_data_filtered, aes(x = skills_list, y = avg_min_sal, fill = skills
 
 # Findings and Recommendations
 
-There are only two skills that appear in the top five skills when measured both by frequency and by average minimum salary: communication and leadership; both are "soft skills." This is evidence that soft skills like communication and leadership are highly valued and should not be neglected by aspiring data scientists in favor of hard skills.
+There are only two skills that appear in the top five skills when measured both by frequency and by average minimum salary: communication and leadership; both are "soft skills." This is evidence that soft skills like communication and leadership are highly valued and should not be neglected by aspiring data scientists in favor of hard skills. 
+
+In the context of big organizations the observed phenomena makes sense. Data scientists with technical skills and good leadership are unicorns. They drive organizations and develop the talent of aspiring data scientists. The ability to persuade people and communicate findings will determine whether or not people take your advice with regards to strategic decision making, but having the ability to guide other data scientists to do this is what brings value to the business.
 
 We also note that Python and SQL are very frequently mentioned skills, and R ranks 12th both in number of postings and average minimum salary. Python is listed over 5 times as often as R, and corresponds to a more than $15,000 average minimum salary increase. SQL is listed almost 3 times as often as R, and corresponds to almost a $20,000 average minimum salary increase.
 
